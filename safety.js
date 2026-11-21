@@ -111,7 +111,9 @@
     });
   }
   drawBlocked();
-  const list=document.getElementById('productList');
-  if(list)new MutationObserver(enforce).observe(list,{childList:true,subtree:true});
+  const originalRender=window.render;
+  if(typeof originalRender==='function'){
+    window.render=function(){originalRender();enforce();};
+  }
   enforce();
 })();
