@@ -140,7 +140,7 @@ function notify(msg){if('Notification'in window&&Notification.permission==='gran
 function exportData(){let blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='stock-hunter-backup.json';a.click();URL.revokeObjectURL(a.href)}
 function importData(e){let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let d=JSON.parse(r.result);if(!Array.isArray(d.products)||!Array.isArray(d.purchases))throw Error();db={products:d.products,purchases:d.purchases,alerts:Array.isArray(d.alerts)?d.alerts:[]};save();toast('データを読み込みました')}catch(_){toast('ファイル形式が正しくありません')}};r.readAsText(f)}
 render();
-if('serviceWorker'in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
+if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister())).catch(()=>{});if('caches' in window)caches.keys().then(keys=>keys.forEach(k=>caches.delete(k))).catch(()=>{});}
 </script>
 <script src="./safety.js?v=20261122b"></script>
 </body></html>
