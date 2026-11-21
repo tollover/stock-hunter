@@ -97,15 +97,15 @@
       }
       const host=hostOf(url),review=reviewFor(url),blocked=!host||isBlocked(host)||knownRisk(host)||!url.startsWith('https://');
       if(blocked){
-        link.removeAttribute('href');link.removeAttribute('target');link.textContent='危険の疑い・購入リンク停止';link.style.background='#542b36';link.style.pointerEvents='none';link.setAttribute('aria-disabled','true');
-        action.textContent='ブロック中';action.disabled=true;
+        link.removeAttribute('href');link.removeAttribute('target');if(link.textContent!=='危険の疑い・購入リンク停止')link.textContent='危険の疑い・購入リンク停止';link.style.background='#542b36';link.style.pointerEvents='none';link.setAttribute('aria-disabled','true');
+        if(action.textContent!=='ブロック中')action.textContent='ブロック中';action.disabled=true;
       }else if(review){
-        link.href=url;link.target='_blank';link.rel='noopener';link.textContent='審査記録あり・商品ページ ↗';link.style.background='#246fc1';link.style.pointerEvents='auto';link.removeAttribute('aria-disabled');
-        action.textContent='審査内容を再確認';action.disabled=false;
+        link.href=url;link.target='_blank';link.rel='noopener';if(link.textContent!=='審査記録あり・商品ページ ↗')link.textContent='審査記録あり・商品ページ ↗';link.style.background='#246fc1';link.style.pointerEvents='auto';link.removeAttribute('aria-disabled');
+        if(action.textContent!=='審査内容を再確認')action.textContent='審査内容を再確認';action.disabled=false;
         action.onclick=()=>askAndReview(url,link,card);
       }else{
-        link.removeAttribute('href');link.removeAttribute('target');link.textContent='審査完了まで購入リンク停止';link.style.background='#6a5424';link.style.pointerEvents='none';link.setAttribute('aria-disabled','true');
-        action.textContent='販売元を審査する';action.disabled=false;
+        link.removeAttribute('href');link.removeAttribute('target');if(link.textContent!=='審査完了まで購入リンク停止')link.textContent='審査完了まで購入リンク停止';link.style.background='#6a5424';link.style.pointerEvents='none';link.setAttribute('aria-disabled','true');
+        if(action.textContent!=='販売元を審査する')action.textContent='販売元を審査する';action.disabled=false;
         action.onclick=()=>askAndReview(url,link,card);
       }
     });
