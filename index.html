@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#101827">
+<title>Stock Hunter</title>
+<link rel="manifest" href="manifest.webmanifest">
+<style>
+:root{color-scheme:dark;--bg:#0b1220;--panel:#131e30;--panel2:#1b2940;--line:#2a3a53;--txt:#edf3fb;--muted:#9eb0c7;--green:#31c48d;--amber:#f4b740;--red:#f07178;--blue:#67a9ff}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(160deg,#0d1728,#080e18 65%);color:var(--txt);font:15px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+header{padding:22px 18px 16px;position:sticky;top:0;background:#0d1728ed;backdrop-filter:blur(12px);z-index:3;border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:11px}.logo{width:40px;height:40px;border-radius:13px;background:linear-gradient(135deg,#2387ff,#20c997);display:grid;place-items:center;font-size:21px;font-weight:800}
+h1{font-size:20px;margin:0}.sub{font-size:12px;color:var(--muted);margin-top:3px}
+main{max-width:900px;margin:auto;padding:16px 14px 100px}.status{display:flex;gap:8px;align-items:center;margin:14px 0 16px;flex-wrap:wrap}.pill{font-size:11px;padding:5px 9px;border:1px solid var(--line);border-radius:99px;color:var(--muted)}.pill.ok{color:var(--green);border-color:#23664e}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}.stat,.card,.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px}.stat{padding:13px}.stat strong{font-size:23px;display:block}.stat span{font-size:11px;color:var(--muted)}
+.tabs{display:flex;gap:7px;overflow:auto;margin:19px 0 14px}.tab{border:1px solid var(--line);background:var(--panel);color:var(--muted);border-radius:10px;padding:10px 13px;white-space:nowrap}.tab.active{background:#1b3b61;color:#fff;border-color:#347bc0}
+.sectionhead{display:flex;align-items:center;justify-content:space-between;margin:18px 2px 10px}.sectionhead h2{font-size:16px;margin:0}.muted{color:var(--muted);font-size:12px}
+button,.button{border:0;border-radius:10px;padding:11px 13px;background:#246fc1;color:white;font-weight:650;font-size:13px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+button.secondary,.button.secondary{background:var(--panel2);border:1px solid var(--line);color:var(--txt)}button.danger{background:#542b36;color:#ffc6ca}button.small{padding:8px 10px;font-size:12px}
+.product{padding:14px;margin-bottom:10px}.prodtop{display:flex;justify-content:space-between;gap:10px}.prodname{font-weight:700;line-height:1.35}.store{font-size:12px;color:var(--muted);margin-top:5px}.state{font-size:11px;border-radius:99px;padding:5px 9px;height:max-content;white-space:nowrap}.state.out{background:#3a3030;color:#ffb1b1}.state.in{background:#153e32;color:#7ce5b8}.state.unknown{background:#30394a;color:#c3d0e1}
+.meta{display:flex;gap:12px;flex-wrap:wrap;color:var(--muted);font-size:11px;margin:12px 0}.actions{display:flex;gap:7px;flex-wrap:wrap}.actions button,.actions a{flex:1}
+.panel{padding:15px;margin-bottom:12px}.formgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.field{display:flex;flex-direction:column;gap:6px}.field.full{grid-column:1/-1}label{font-size:12px;color:var(--muted)}input,select,textarea{width:100%;background:#0b1422;color:var(--txt);border:1px solid var(--line);border-radius:10px;padding:12px;font:inherit;min-width:0}input:focus,select:focus{outline:2px solid #347bc0} .hint{font-size:11px;color:var(--muted);line-height:1.55}
+.empty{text-align:center;padding:30px 15px;color:var(--muted)}.hidden{display:none!important}
+.logrow{padding:12px 0;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:12px}.logrow:last-child{border:0}
+footer{position:fixed;bottom:0;left:0;right:0;background:#0d1728ed;border-top:1px solid var(--line);padding:10px 14px calc(10px + env(safe-area-inset-bottom));display:flex;justify-content:center;z-index:4}.footinner{max-width:900px;width:100%;display:flex;justify-content:space-between;align-items:center;gap:10px}.footinner span{font-size:11px;color:var(--muted)}
+.toast{position:fixed;bottom:85px;left:50%;transform:translateX(-50%);background:#e9f2ff;color:#102033;padding:11px 16px;border-radius:12px;box-shadow:0 8px 28px #0008;z-index:9;font-size:13px;max-width:90%;display:none}
+@media(max-width:520px){.formgrid{grid-template-columns:1fr}.field.full{grid-column:auto}.stats{gap:7px}.stat{padding:10px}.stat strong{font-size:20px}.prodtop{align-items:flex-start}}
+</style>
+</head>
+<body>
+<header><div class="brand"><div class="logo">S</div><div><h1>Stock Hunter</h1><div class="sub">商品入荷監視・購入管理 v0.1</div></div></div></header>
+<main>
+  <div class="status"><span class="pill ok">● ローカル試作版 起動中</span><span class="pill">データ保存：この端末のブラウザ内</span><span class="pill">クラウド監視：未接続</span></div>
+  <div class="stats">
+    <div class="stat"><strong id="countProducts">0</strong><span>登録商品</span></div>
+    <div class="stat"><strong id="countAlerts">0</strong><span>入荷検知ログ</span></div>
+    <div class="stat"><strong id="countPurchases">0</strong><span>購入記録</span></div>
+  </div>
+  <nav class="tabs">
+    <button class="tab active" data-tab="products">商品監視</button>
+    <button class="tab" data-tab="add">商品登録</button>
+    <button class="tab" data-tab="history">購入履歴</button>
+    <button class="tab" data-tab="settings">設定・注意事項</button>
+  </nav>
+  <section id="view-products">
+    <div class="sectionhead"><h2>監視商品一覧</h2><button class="small" onclick="showTab('add')">＋ 商品登録</button></div>
+    <div id="productList"></div>
+    <p class="hint">※ v0.1では商品情報を端末内に保存します。実際の販売サイトを自動巡回するクラウド監視はまだ接続していません。「テスト入荷」は通知・履歴画面の動作確認用です。</p>
+  </section>
+  <section id="view-add" class="hidden">
+    <div class="sectionhead"><h2>監視商品を登録</h2></div>
+    <div class="panel">
+      <form id="productForm">
+        <div class="formgrid">
+          <div class="field full"><label>商品名 *</label><input id="pname" required placeholder="例：ポケモンカード BOX"></div>
+          <div class="field"><label>販売サイト *</label><select id="store" required><option>Amazon</option><option>ヨドバシカメラ</option><option>ポケモンセンターオンライン</option><option>楽天市場</option><option>Yahoo!ショッピング</option><option>ビックカメラ</option><option>駿河屋</option><option>Joshin</option><option>その他</option></select></div>
+          <div class="field"><label>監視優先度</label><select id="priority"><option>最優先</option><option selected>通常</option><option>低</option></select></div>
+          <div class="field full"><label>商品ページURL *</label><input id="url" type="url" required placeholder="https://..."></div>
+          <div class="field"><label>目標価格（任意・円）</label><input id="target" type="number" min="0" placeholder="例：5500"></div>
+          <div class="field"><label>初期在庫状態</label><select id="initial"><option value="unknown">未確認</option><option value="out">在庫なし</option><option value="in">在庫あり</option></select></div>
+          <div class="field full"><button type="submit">商品を登録する</button></div>
+        </div>
+      </form>
+    </div>
+    <p class="hint">商品URLは正規の販売ページを登録してください。ログイン情報・パスワード・カード番号は登録しないでください。</p>
+  </section>
+  <section id="view-history" class="hidden">
+    <div class="sectionhead"><h2>購入履歴</h2><button class="small" onclick="showPurchaseForm()">＋ 購入記録</button></div>
+    <div id="purchaseForm" class="panel hidden">
+      <form id="buyForm"><div class="formgrid">
+        <div class="field full"><label>商品名 *</label><input id="bname" required placeholder="商品名"></div>
+        <div class="field"><label>購入店舗</label><input id="bstore" placeholder="店舗名"></div>
+        <div class="field"><label>購入価格（円）</label><input id="bprice" type="number" min="0" required></div>
+        <div class="field"><label>購入日</label><input id="bdate" type="date" required></div>
+        <div class="field"><label>注文番号（任意）</label><input id="border" placeholder="注文番号"></div>
+        <div class="field full"><label>発送状況</label><select id="bstatus"><option>注文済み</option><option>発送済み</option><option>到着済み</option><option>キャンセル</option></select></div>
+        <div class="field full"><button type="submit">購入履歴を保存</button></div>
+      </div></form>
+    </div>
+    <div id="purchaseList"></div>
+  </section>
+  <section id="view-settings" class="hidden">
+    <div class="sectionhead"><h2>設定・運用について</h2></div>
+    <div class="panel">
+      <h3 style="margin-top:0">通知テスト</h3>
+      <p class="hint">この試作版では、ページを開いている間の画面内通知と、対応ブラウザで許可された通知をテストできます。iPhoneのバックグラウンド・プッシュ通知には、HTTPS配信とサーバー側Push配信の追加が必要です。</p>
+      <button onclick="requestNotify()">ブラウザ通知を許可・テスト</button>
+    </div>
+    <div class="panel">
+      <h3 style="margin-top:0">データ管理</h3>
+      <p class="hint">商品・購入履歴は現在のブラウザ内に保存されます。機種変更やブラウザデータ消去で失われる可能性があります。</p>
+      <button class="secondary" onclick="exportData()">データを書き出す（JSON）</button>
+      <button class="secondary" onclick="document.getElementById('importFile').click()">データを読み込む</button>
+      <input id="importFile" type="file" accept="application/json" class="hidden" onchange="importData(event)">
+    </div>
+    <div class="panel">
+      <h3 style="margin-top:0">v0.1の制約と次の開発</h3>
+      <ul class="hint">
+        <li>販売サイトの自動巡回・在庫判定は未接続です。</li>
+        <li>商品ページを開くボタンは実際の登録URLへ移動します。</li>
+        <li>購入確定・決済は利用者本人が販売サイトで行います。</li>
+        <li>次段階でクラウドDB、許可されたAPI・監視手段、Push通知を接続します。</li>
+      </ul>
+    </div>
+  </section>
+</main>
+<footer><div class="footinner"><span>Stock Hunter v0.1 · Prototype</span><span>購入確定は本人操作</span></div></footer>
+<div id="toast" class="toast"></div>
+<script>
+const KEY='stockhunter_v01_data';
+let db=load();
+function load(){try{return JSON.parse(localStorage.getItem(KEY))||{products:[],purchases:[],alerts:[]}}catch(e){return {products:[],purchases:[],alerts:[]}}}
+function save(){localStorage.setItem(KEY,JSON.stringify(db));render()}
+function id(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function toast(s){let t=document.getElementById('toast');t.textContent=s;t.style.display='block';setTimeout(()=>t.style.display='none',2600)}
+function showTab(tab){document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));['products','add','history','settings'].forEach(x=>document.getElementById('view-'+x).classList.toggle('hidden',x!==tab));}
+document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.tab)));
+document.getElementById('productForm').addEventListener('submit',e=>{
+ e.preventDefault();let p={id:id(),name:pname.value.trim(),store:store.value,priority:priority.value,url:url.value.trim(),target:target.value?Number(target.value):null,state:initial.value,created:new Date().toISOString(),lastChecked:null};
+ db.products.unshift(p);save();e.target.reset();showTab('products');toast('商品を登録しました');
+});
+function render(){
+ countProducts.textContent=db.products.length;countAlerts.textContent=db.alerts.length;countPurchases.textContent=db.purchases.length;
+ let list=document.getElementById('productList');
+ if(!db.products.length){list.innerHTML='<div class="card empty">まだ商品が登録されていません。<br>「商品登録」から監視したい商品を追加してください。</div>'}
+ else list.innerHTML=db.products.map(p=>`<article class="card product"><div class="prodtop"><div><div class="prodname">${esc(p.name)}</div><div class="store">${esc(p.store)} · 優先度：${esc(p.priority)}</div></div><span class="state ${p.state}">${p.state==='in'?'在庫あり':p.state==='out'?'在庫なし':'未確認'}</span></div><div class="meta"><span>目標価格：${p.target?Number(p.target).toLocaleString()+'円':'未設定'}</span><span>登録：${new Date(p.created).toLocaleDateString('ja-JP')}</span></div><div class="actions"><a class="button" href="${esc(p.url)}" target="_blank" rel="noopener">商品ページを開く ↗</a><button class="secondary" onclick="testIn('${p.id}')">テスト入荷</button><button class="secondary" onclick="editState('${p.id}')">状態変更</button><button class="danger" onclick="delProduct('${p.id}')">削除</button></div></article>`).join('');
+ let pl=document.getElementById('purchaseList');
+ pl.innerHTML=db.purchases.length?db.purchases.map(p=>`<div class="panel"><div class="prodtop"><strong>${esc(p.name)}</strong><span class="pill">${esc(p.status)}</span></div><div class="meta"><span>${esc(p.store||'店舗未設定')}</span><span>${Number(p.price).toLocaleString()}円</span><span>${esc(p.date)}</span></div><div class="hint">注文番号：${esc(p.order||'未登録')}</div><div style="text-align:right;margin-top:8px"><button class="danger small" onclick="delPurchase('${p.id}')">削除</button></div></div>`).join(''):'<div class="card empty">購入履歴はまだありません。</div>';
+}
+function testIn(pid){let p=db.products.find(x=>x.id===pid);if(!p)return;p.state='in';p.lastChecked=new Date().toISOString();db.alerts.unshift({id:id(),product:p.name,store:p.store,time:p.lastChecked,type:'テスト入荷'});save();notify('【テスト入荷】'+p.name+' / '+p.store);toast('テスト入荷を記録しました')}
+function editState(pid){let p=db.products.find(x=>x.id===pid);if(!p)return;let v=prompt('状態を入力：in（在庫あり） / out（在庫なし） / unknown（未確認）',p.state);if(['in','out','unknown'].includes(v)){let old=p.state;p.state=v;p.lastChecked=new Date().toISOString();if(old!=='in'&&v==='in'){db.alerts.unshift({id:id(),product:p.name,store:p.store,time:p.lastChecked,type:'手動状態変更'});notify('在庫ありに変更：'+p.name)}save()}}
+function delProduct(pid){if(confirm('この商品を削除しますか？')){db.products=db.products.filter(p=>p.id!==pid);save()}}
+function showPurchaseForm(){purchaseForm.classList.toggle('hidden');bdate.value=new Date().toISOString().slice(0,10)}
+buyForm.addEventListener('submit',e=>{e.preventDefault();db.purchases.unshift({id:id(),name:bname.value.trim(),store:bstore.value,price:Number(bprice.value),date:bdate.value,order:border.value,status:bstatus.value});save();e.target.reset();purchaseForm.classList.add('hidden');toast('購入履歴を保存しました')});
+function delPurchase(pid){if(confirm('購入記録を削除しますか？')){db.purchases=db.purchases.filter(p=>p.id!==pid);save()}}
+async function requestNotify(){if(!('Notification'in window)){toast('このブラウザは通知に対応していません');return}let p=await Notification.requestPermission();if(p==='granted'){new Notification('Stock Hunter',{body:'通知テストに成功しました'});toast('通知を送信しました')}else toast('通知が許可されませんでした')}
+function notify(msg){if('Notification'in window&&Notification.permission==='granted')new Notification('Stock Hunter',{body:msg});else toast(msg)}
+function exportData(){let blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='stock-hunter-backup.json';a.click();URL.revokeObjectURL(a.href)}
+function importData(e){let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let d=JSON.parse(r.result);if(!Array.isArray(d.products)||!Array.isArray(d.purchases))throw Error();db={products:d.products,purchases:d.purchases,alerts:Array.isArray(d.alerts)?d.alerts:[]};save();toast('データを読み込みました')}catch(_){toast('ファイル形式が正しくありません')}};r.readAsText(f)}
+render();
+if('serviceWorker'in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
+</script>
+</body></html>
