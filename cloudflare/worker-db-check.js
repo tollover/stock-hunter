@@ -155,6 +155,7 @@ export default {
         if (!body || !body.data || !Array.isArray(body.data.products) ||
             !Array.isArray(body.data.purchases) ||
             (body.data.alerts !== undefined && !Array.isArray(body.data.alerts)) ||
+            (body.data.keywordWatches !== undefined && !Array.isArray(body.data.keywordWatches)) ||
             (body.safety !== null && body.safety !== undefined &&
              (typeof body.safety !== "object" || Array.isArray(body.safety)))) {
           return new Response(JSON.stringify({ ok: false, message: "Backup format is invalid." }), { status: 400, headers });
@@ -166,7 +167,8 @@ export default {
             JSON.stringify({
               products: body.data.products,
               purchases: body.data.purchases,
-              alerts: Array.isArray(body.data.alerts) ? body.data.alerts : []
+              alerts: Array.isArray(body.data.alerts) ? body.data.alerts : [],
+              keywordWatches: Array.isArray(body.data.keywordWatches) ? body.data.keywordWatches : []
             }),
             body.safety ? JSON.stringify(body.safety) : null
           ).run();
