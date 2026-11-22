@@ -109,7 +109,18 @@ footer{position:fixed;bottom:0;left:0;right:0;background:#0d1728ed;border-top:1p
       <input id="importFile" type="file" accept="application/json" class="hidden" onchange="importData(event)">
     </div>
     <div class="panel">
-      <h3 style="margin-top:0">クラウドデータ同期</h3>
+
+    <div class="panel">
+      <h3 style="margin-top:0">家族メンバー招待</h3>
+      <p class="hint">家族のメールアドレスを登録して招待待ちリストに追加します。登録だけではログイン権限やデータ共有は開始されません。Cloudflare Accessの許可設定と家族共有の有効化が必要です。</p>
+      <form id="familyInviteForm">
+        <div class="field"><label for="familyEmail">家族のメールアドレス</label><input id="familyEmail" type="email" required maxlength="254" autocomplete="email" placeholder="family@example.com"></div>
+        <button type="submit" style="margin-top:10px">招待リストに追加</button>
+      </form>
+      <div id="familyInviteStatus" class="hint" aria-live="polite" style="margin-top:10px">招待リストを読み込んでいます…</div>
+      <div id="familyInviteList"></div>
+    </div>
+\n      <h3 style="margin-top:0">クラウドデータ同期</h3>
       <p class="hint">商品・購入履歴・入荷ログ・販売元審査情報を、ログイン中のアカウント専用領域に保存します。同期は手動操作です。復元すると端末内のデータが置き換わるため、確認してから実行してください。</p>
       <div class="actions">
         <button type="button" onclick="syncToCloud()">端末からクラウドへ保存</button>
