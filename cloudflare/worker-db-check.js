@@ -1,5 +1,5 @@
 export default {
-  async fetch(request, env, ctx) {
+  async fetch(request, env) {
     const headers = {
       "content-type": "application/json; charset=utf-8",
       "cache-control": "no-store"
@@ -14,32 +14,17 @@ export default {
         }), { status: 405, headers });
       }
 
-      if (!ctx.access) {
-        return new Response(JSON.stringify({
-          ok: false,
-          message: "Cloudflare Access authentication is required."
-        }), { status: 401, headers });
-      }
-
       try {
-        const identity = await ctx.access.getIdentity();
-        if (!identity || !identity.email) {
-          return new Response(JSON.stringify({
-            ok: false,
-            message: "Authenticated identity could not be verified."
-          }), { status: 401, headers });
-        }
-
         const database = await env.DB.prepare("SELECT 1 AS connected").first();
         return new Response(JSON.stringify({
           ok: true,
-          authenticated: true,
-          database_connected: database?.connected === 1
+          database_connected: database?.connected === 1,
+          note: "Protect this Worker with Cloudflare Access before exposing private data APIs."
         }, null, 2), { status: 200, headers });
       } catch (error) {
         return new Response(JSON.stringify({
           ok: false,
-          message: "Authentication or database check failed.",
+          message: "D1 query failed.",
           error: String(error && error.message ? error.message : error)
         }, null, 500), { status: 500, headers });
       }
