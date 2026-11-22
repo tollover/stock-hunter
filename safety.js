@@ -1,12 +1,14 @@
 (() => {
   'use strict';
   const KEY='stockhunter_v02_safety';
-  const defaults={policy:'strict',includeMarketplace:true,blockDangerous:true,blockedDomains:[],reviews:[]};
+  const defaults={policy:'strict',includeMarketplace:true,blockDangerous:true,blockedDomains:[],reviews:[],history:[]};
   let cfg;
   try{cfg={...defaults,...JSON.parse(localStorage.getItem(KEY)||'{}')}}catch{cfg={...defaults}}
   if(!Array.isArray(cfg.blockedDomains))cfg.blockedDomains=[];
   if(!Array.isArray(cfg.reviews))cfg.reviews=[];
-  const save=()=>localStorage.setItem(KEY,JSON.stringify(cfg));
+  if(!Array.isArray(cfg.history))cfg.history=[];
+  const save=()=>{localStorage.setItem(KEY,JSON.stringify(cfg));drawHistory()};
+  const logHistory=entry=>{cfg.history.unshift({...entry,date:new Date().toISOString()});cfg.history=cfg.history.slice(0,100);save()};
   const hostOf=u=>{try{return new URL(u).hostname.toLowerCase()}catch{return ''}};
   const knownRisk=h=>/xn--|\.tk$|\.ml$|\.ga$|\.cf$|\.gq$|\.top$|\.xyz$|\.click$/.test(h);
   const isBlocked=h=>cfg.blockedDomains.includes(h)||cfg.blockedDomains.some(x=>h.endsWith('.'+x));
@@ -31,8 +33,12 @@
   const panel=document.createElement('div');
   panel.className='panel';
   panel.innerHTML='<h3 style="margin-top:0">販売元安全性チェック（厳格設定）</h3><p class="hint">厳格設定：商品ごとに販売元を確認するまで購入リンクを停止します。第三者出品者も審査対象です。</p><div class="formgrid"><div class="field full"><label>販売ページURL</label><input id="shUrl" type="url" placeholder="https://..."></div><div class="field"><label>販売元（会社・店舗名）</label><input id="shSeller" placeholder="例：○○株式会社"></div><div class="field"><label>発送元</label><input id="shShipper" placeholder="例：販売元と同じ"></div><div class="field full"><label><input id="shMarket" type="checkbox" style="width:auto;margin-right:7px">モール内の第三者出品者</label></div><div class="field full"><button id="shCheck">安全性を確認</button></div></div><div id="shResult" class="hint" style="margin-top:12px"></div><hr style="border:0;border-top:1px solid var(--line);margin:16px 0"><div class="field"><label>危険と判断したドメインをブロック登録</label><input id="shBlock" placeholder="例：example.com"><button id="shAddBlock" class="danger">このドメインをブロック</button></div><div id="shBlocked" class="hint" style="margin-top:10px"></div><p class="hint" style="margin-top:14px">重要：最新の詐欺サイトリスト照合、会社の実在確認、価格相場の自動判定は未接続です。HTTPSや大手モールであることだけでは安全と判定できません。審査済み表示も安全を保証するものではありません。</p>';
+  panel.innerHTML+='<hr style="border:0;border-top:1px solid var(--line);margin:16px 0"><h3>審査履歴（直近100件）</h3><div id="shHistory" class="hint">履歴はまだありません。</div>';
   const settings=document.getElementById('view-settings');
   if(settings)settings.insertBefore(panel,settings.children[1]||null);
+  const safeText=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  function drawHistory(){const el=document.getElementById('shHistory');if(!el)return;el.innerHTML=cfg.history.length?cfg.history.map(x=>'<div style="padding:8px 0;border-bottom:1px solid var(--line)"><strong>'+(x.status==='approved'?'審査記録あり':x.status==='blocked'?'購入リンク停止':x.status==='cancelled'?'審査中断':'再審査開始')+'</strong><br>'+safeText(x.seller||'販売元未入力')+' ／ '+safeText(x.host||'URL不明')+'<br>'+safeText(new Date(x.date).toLocaleString('ja-JP'))+'</div>').join(''):'履歴はまだありません。'}
+  drawHistory();
   const result=document.getElementById('shResult');
   document.getElementById('shCheck').onclick=()=>{
     const url=document.getElementById('shUrl').value.trim();
@@ -63,10 +69,14 @@
   function askAndReview(url,link,card){
     const host=hostOf(url);
     if(!host||isBlocked(host)||knownRisk(host)){alert('危険の疑いがあるため、この購入リンクはブロックしています。');return}
+    // 再審査を開始した時点で以前の承認を取り消し、途中中断でもリンクを停止する
+    cfg.reviews=cfg.reviews.filter(x=>x.url!==url);
+    logHistory({url,host,status:'recheck_started',seller:''});
+    enforce();
     const seller=prompt('販売元の正式な会社名・店舗名を入力してください（不明ならキャンセル）');
-    if(!seller||!seller.trim())return;
+    if(!seller||!seller.trim()){logHistory({url,host,status:'cancelled',seller:''});enforce();alert('販売元が未確認のため、購入リンクは停止したままです。');return}
     const shipper=prompt('発送元の会社名・店舗名を入力してください（不明ならキャンセル）');
-    if(!shipper||!shipper.trim())return;
+    if(!shipper||!shipper.trim()){logHistory({url,host,status:'cancelled',seller:seller.trim()});enforce();alert('発送元が未確認のため、購入リンクは停止したままです。');return}
     const market=confirm('モール内の第三者出品者ですか？\n「OK」＝第三者出品者、「キャンセル」＝公式・直販');
     const checks=[
       confirm('販売元の会社概要・所在地・連絡先を、販売サイト以外の公式情報でも確認しましたか？'),
@@ -77,8 +87,9 @@
     const a=assess(url,seller,shipper,market);
     const approved=checks.every(Boolean)&&marketplaceOk&&a.level!=='blocked'&&!isBlocked(host);
     cfg.reviews=cfg.reviews.filter(x=>x.url!==url);
-    cfg.reviews.unshift({url,host,seller:seller.trim(),shipper:shipper.trim(),marketplace:market,approved,level:approved?'reviewed':'hold',date:new Date().toISOString()});
-    save();enforce();
+    if(approved)cfg.reviews.unshift({url,host,seller:seller.trim(),shipper:shipper.trim(),marketplace:market,approved:true,level:'reviewed',date:new Date().toISOString()});
+    logHistory({url,host,seller:seller.trim(),shipper:shipper.trim(),marketplace:market,status:approved?'approved':'blocked',reasons:a.reasons});
+    enforce();
     alert(approved?'確認項目を記録しました。リンクを利用できますが、安全を保証するものではありません。':'確認が不足しているため、購入リンクは停止したままです。');
   }
 
