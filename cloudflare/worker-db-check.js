@@ -127,9 +127,13 @@ export default {
 
 
     if (url.pathname === "/api/family/invites") {
+      const ownerEmail = String(env.ALLOWED_EMAIL || "").trim().toLowerCase();
+      const requesterEmail = String(auth.payload.email || "").trim().toLowerCase();
+      if (!ownerEmail || requesterEmail !== ownerEmail) {
+        return new Response(JSON.stringify({ ok: false, message: "家族招待の管理は管理者アカウントのみ利用できます。" }), { status: 403, headers });
+      }
       try {
         await env.DB.prepare("CREATE TABLE IF NOT EXISTS stock_hunter_family_invites (id TEXT PRIMARY KEY, owner_email TEXT NOT NULL, invited_email TEXT NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime('now')), UNIQUE(owner_email, invited_email))").run();
-        const ownerEmail = String(auth.payload.email).toLowerCase();
         if (request.method === "GET") {
           const result = await env.DB.prepare("SELECT id, invited_email, status, created_at FROM stock_hunter_family_invites WHERE owner_email = ? ORDER BY created_at DESC").bind(ownerEmail).all();
           return new Response(JSON.stringify({ ok: true, invites: result.results || [] }), { status: 200, headers });
