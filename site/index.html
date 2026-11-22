@@ -29,7 +29,7 @@ footer{position:fixed;bottom:0;left:0;right:0;background:#0d1728ed;border-top:1p
 </style>
 </head>
 <body>
-<header><div class="brand"><div class="logo">S</div><div><h1>Stock Hunter</h1><div class="sub">商品入荷監視・購入管理 v0.1</div></div></div></header>
+<header><div class="brand"><div class="logo">S</div><div><h1>Stock Hunter</h1><div class="sub">商品入荷監視・購入管理 v0.2</div></div></div></header>
 <main>
   <div class="status"><span class="pill ok">● ローカル試作版 起動中</span><span class="pill">データ保存：この端末のブラウザ内</span><span class="pill">クラウド監視：未接続</span></div>
   <div class="stats">
@@ -40,6 +40,7 @@ footer{position:fixed;bottom:0;left:0;right:0;background:#0d1728ed;border-top:1p
   <nav class="tabs">
     <button class="tab active" data-tab="products">商品監視</button>
     <button class="tab" data-tab="add">商品登録</button>
+    <button class="tab" data-tab="search">キーワード検索</button>
     <button class="tab" data-tab="history">購入履歴</button>
     <button class="tab" data-tab="settings">設定・注意事項</button>
   </nav>
@@ -54,7 +55,7 @@ footer{position:fixed;bottom:0;left:0;right:0;background:#0d1728ed;border-top:1p
       <form id="productForm">
         <div class="formgrid">
           <div class="field full"><label>商品名 *</label><input id="pname" required placeholder="例：ポケモンカード BOX"></div>
-          <div class="field"><label>販売サイト *</label><select id="store" required><option>Amazon</option><option>ヨドバシカメラ</option><option>ポケモンセンターオンライン</option><option>楽天市場</option><option>Yahoo!ショッピング</option><option>ビックカメラ</option><option>駿河屋</option><option>Joshin</option><option>その他</option></select></div>
+          <div class="field"><label>販売サイト *</label><select id="store" required><option>Amazon.co.jp</option><option>ヨドバシカメラ</option><option>ビックカメラ</option><option>ヤマダデンキ</option><option>Joshin</option><option>エディオン</option><option>駿河屋</option><option>ポケモンセンターオンライン</option><option>イオンスタイルオンライン</option><option>楽天市場</option><option>Yahoo!ショッピング</option><option>その他</option></select></div>
           <div class="field"><label>監視優先度</label><select id="priority"><option>最優先</option><option selected>通常</option><option>低</option></select></div>
           <div class="field full"><label>商品ページURL *</label><input id="url" type="url" required placeholder="https://..."></div>
           <div class="field"><label>目標価格（任意・円）</label><input id="target" type="number" min="0" placeholder="例：5500"></div>
@@ -64,6 +65,19 @@ footer{position:fixed;bottom:0;left:0;right:0;background:#0d1728ed;border-top:1p
       </form>
     </div>
     <p class="hint">商品URLは正規の販売ページを登録してください。ログイン情報・パスワード・カード番号は登録しないでください。</p>
+  </section>
+  <section id="view-search" class="hidden">
+    <div class="sectionhead"><h2>キーワード検索・監視登録</h2></div>
+    <div class="panel"><form id="keywordForm"><div class="formgrid">
+      <div class="field full"><label>商品名・キーワード *</label><input id="keyword" required placeholder="例：ポケモンカード BOX / Nintendo Switch 2"></div>
+      <div class="field full"><label>対象店舗（複数選択可）</label><select id="keywordStores" multiple size="6"><option selected>Amazon.co.jp</option><option selected>ヨドバシカメラ</option><option selected>ビックカメラ</option><option selected>ヤマダデンキ</option><option selected>Joshin</option><option selected>エディオン</option><option selected>駿河屋</option><option selected>ポケモンセンターオンライン</option><option selected>イオンスタイルオンライン</option></select><p class="hint">店舗名をタップして選択・解除できます。初期状態では全店舗が選択されています。</p></div>
+      <div class="field"><label>価格上限（任意・円）</label><input id="keywordMaxPrice" type="number" min="0" placeholder="例：10000"></div>
+      <div class="field"><label>優先度</label><select id="keywordPriority"><option>最優先</option><option selected>通常</option><option>低</option></select></div>
+      <div class="field full"><label>型番・色・仕様など（任意）</label><input id="keywordNote" placeholder="例：シュリンク付き、黒色、256GB"></div>
+      <div class="field full"><button type="submit">検索条件を登録する</button></div>
+    </div></form></div>
+    <div class="sectionhead"><h2>登録済み検索条件</h2></div><div id="keywordWatchList"></div>
+    <p class="hint">現在は検索条件の保存まで対応しています。各店舗の自動検索・候補取得は未接続です。検索結果が取得できたように見せることはせず、店舗連携が実装された段階で有効化します。</p>
   </section>
   <section id="view-history" class="hidden">
     <div class="sectionhead"><h2>購入履歴</h2><button class="small" onclick="showPurchaseForm()">＋ 購入記録</button></div>
@@ -119,25 +133,32 @@ footer{position:fixed;bottom:0;left:0;right:0;background:#0d1728ed;border-top:1p
 <script>
 const KEY='stockhunter_v01_data';
 let db=load();
-function load(){try{return JSON.parse(localStorage.getItem(KEY))||{products:[],purchases:[],alerts:[]}}catch(e){return {products:[],purchases:[],alerts:[]}}}
+function load(){try{let d=JSON.parse(localStorage.getItem(KEY))||{products:[],purchases:[],alerts:[]};if(!Array.isArray(d.keywordWatches))d.keywordWatches=[];return d}catch(e){return {products:[],purchases:[],alerts:[],keywordWatches:[]}}}
 function save(){localStorage.setItem(KEY,JSON.stringify(db));render()}
 function id(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function toast(s){let t=document.getElementById('toast');t.textContent=s;t.style.display='block';setTimeout(()=>t.style.display='none',2600)}
-function showTab(tab){document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));['products','add','history','settings'].forEach(x=>document.getElementById('view-'+x).classList.toggle('hidden',x!==tab));}
+function showTab(tab){document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));['products','add','search','history','settings'].forEach(x=>document.getElementById('view-'+x).classList.toggle('hidden',x!==tab));}
 document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.tab)));
+document.getElementById('keywordForm').addEventListener('submit',e=>{
+ e.preventDefault();const stores=[...document.getElementById('keywordStores').selectedOptions].map(o=>o.value);if(!stores.length){toast('対象店舗を1つ以上選択してください');return}
+ db.keywordWatches.unshift({id:id(),keyword:document.getElementById('keyword').value.trim(),stores,maxPrice:document.getElementById('keywordMaxPrice').value?Number(document.getElementById('keywordMaxPrice').value):null,priority:document.getElementById('keywordPriority').value,note:document.getElementById('keywordNote').value.trim(),created:new Date().toISOString(),status:'検索連携準備中'});save();e.target.reset();[...document.getElementById('keywordStores').options].forEach(o=>o.selected=true);toast('検索条件を保存しました');
+});
 document.getElementById('productForm').addEventListener('submit',e=>{
  e.preventDefault();let p={id:id(),name:pname.value.trim(),store:store.value,priority:priority.value,url:url.value.trim(),target:target.value?Number(target.value):null,state:initial.value,created:new Date().toISOString(),lastChecked:null};
  db.products.unshift(p);save();e.target.reset();showTab('products');toast('商品を登録しました');
 });
 function render(){
  countProducts.textContent=db.products.length;countAlerts.textContent=db.alerts.length;countPurchases.textContent=db.purchases.length;
+ const kw=document.getElementById('keywordWatchList');if(kw){kw.innerHTML=db.keywordWatches.length?db.keywordWatches.map(w=>`<div class="panel"><div class="prodtop"><strong>${esc(w.keyword)}</strong><span class="pill">${esc(w.status||'検索連携準備中')}</span></div><div class="meta"><span>対象：${esc((w.stores||[]).join(' / '))}</span><span>価格上限：${w.maxPrice?Number(w.maxPrice).toLocaleString()+'円':'指定なし'}</span><span>優先度：${esc(w.priority||'通常')}</span></div>${w.note?`<p class="hint">条件：${esc(w.note)}</p>`:''}<div style="text-align:right"><button class="danger small" onclick="deleteKeywordWatch('${w.id}')">検索条件を削除</button></div></div>`).join(''):'<div class="card empty">検索条件はまだ登録されていません。</div>';}
+
  let list=document.getElementById('productList');
  if(!db.products.length){list.innerHTML='<div class="card empty">まだ商品が登録されていません。<br>「商品登録」から監視したい商品を追加してください。</div>'}
  else list.innerHTML=db.products.map(p=>`<article class="card product"><div class="prodtop"><div><div class="prodname">${esc(p.name)}</div><div class="store">${esc(p.store)} · 優先度：${esc(p.priority)}</div></div><span class="state ${p.state}">${p.state==='in'?'在庫あり':p.state==='out'?'在庫なし':'未確認'}</span></div><div class="meta"><span>目標価格：${p.target?Number(p.target).toLocaleString()+'円':'未設定'}</span><span>登録：${new Date(p.created).toLocaleDateString('ja-JP')}</span></div><div class="actions"><a class="button" href="${esc(p.url)}" target="_blank" rel="noopener">商品ページを開く ↗</a><button class="secondary" onclick="testIn('${p.id}')">テスト入荷</button><button class="secondary" onclick="editState('${p.id}')">状態変更</button><button class="danger" onclick="delProduct('${p.id}')">削除</button></div></article>`).join('');
  let pl=document.getElementById('purchaseList');
  pl.innerHTML=db.purchases.length?db.purchases.map(p=>`<div class="panel"><div class="prodtop"><strong>${esc(p.name)}</strong><span class="pill">${esc(p.status)}</span></div><div class="meta"><span>${esc(p.store||'店舗未設定')}</span><span>${Number(p.price).toLocaleString()}円</span><span>${esc(p.date)}</span></div><div class="hint">注文番号：${esc(p.order||'未登録')}</div><div style="text-align:right;margin-top:8px"><button class="danger small" onclick="delPurchase('${p.id}')">削除</button></div></div>`).join(''):'<div class="card empty">購入履歴はまだありません。</div>';
 }
+function deleteKeywordWatch(wid){if(confirm('この検索条件を削除しますか？')){db.keywordWatches=db.keywordWatches.filter(w=>w.id!==wid);save()}}
 function testIn(pid){let p=db.products.find(x=>x.id===pid);if(!p)return;p.state='in';p.lastChecked=new Date().toISOString();db.alerts.unshift({id:id(),product:p.name,store:p.store,time:p.lastChecked,type:'テスト入荷'});save();notify('【テスト入荷】'+p.name+' / '+p.store);toast('テスト入荷を記録しました')}
 function editState(pid){let p=db.products.find(x=>x.id===pid);if(!p)return;let v=prompt('状態を入力：in（在庫あり） / out（在庫なし） / unknown（未確認）',p.state);if(['in','out','unknown'].includes(v)){let old=p.state;p.state=v;p.lastChecked=new Date().toISOString();if(old!=='in'&&v==='in'){db.alerts.unshift({id:id(),product:p.name,store:p.store,time:p.lastChecked,type:'手動状態変更'});notify('在庫ありに変更：'+p.name)}save()}}
 function delProduct(pid){if(confirm('この商品を削除しますか？')){db.products=db.products.filter(p=>p.id!==pid);save()}}
@@ -147,7 +168,7 @@ function delPurchase(pid){if(confirm('購入記録を削除しますか？')){db
 async function requestNotify(){if(!('Notification'in window)){toast('このブラウザは通知に対応していません');return}let p=await Notification.requestPermission();if(p==='granted'){new Notification('Stock Hunter',{body:'通知テストに成功しました'});toast('通知を送信しました')}else toast('通知が許可されませんでした')}
 function notify(msg){if('Notification'in window&&Notification.permission==='granted')new Notification('Stock Hunter',{body:msg});else toast(msg)}
 function exportData(){let safety=null;try{safety=JSON.parse(localStorage.getItem('stockhunter_v02_safety')||'null')}catch(e){}const backup={format:'StockHunterBackup',version:2,exportedAt:new Date().toISOString(),data:db,safety};let blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='stock-hunter-full-backup.json';a.click();URL.revokeObjectURL(a.href);toast('商品・購入履歴・販売元審査情報をバックアップしました')}
-function importData(e){let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let parsed=JSON.parse(r.result),d=parsed&&parsed.format==='StockHunterBackup'?parsed.data:parsed;if(!d||!Array.isArray(d.products)||!Array.isArray(d.purchases))throw Error();db={products:d.products,purchases:d.purchases,alerts:Array.isArray(d.alerts)?d.alerts:[]};save();if(parsed&&parsed.format==='StockHunterBackup'&&parsed.safety&&typeof parsed.safety==='object')localStorage.setItem('stockhunter_v02_safety',JSON.stringify(parsed.safety));toast('データを読み込みました。審査情報を復元した場合は画面を再読み込みしてください')}catch(_){toast('ファイル形式が正しくありません')}};r.readAsText(f);e.target.value=''}
+function importData(e){let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let parsed=JSON.parse(r.result),d=parsed&&parsed.format==='StockHunterBackup'?parsed.data:parsed;if(!d||!Array.isArray(d.products)||!Array.isArray(d.purchases))throw Error();db={products:d.products,purchases:d.purchases,alerts:Array.isArray(d.alerts)?d.alerts:[],keywordWatches:Array.isArray(d.keywordWatches)?d.keywordWatches:[]};save();if(parsed&&parsed.format==='StockHunterBackup'&&parsed.safety&&typeof parsed.safety==='object')localStorage.setItem('stockhunter_v02_safety',JSON.stringify(parsed.safety));toast('データを読み込みました。審査情報を復元した場合は画面を再読み込みしてください')}catch(_){toast('ファイル形式が正しくありません')}};r.readAsText(f);e.target.value=''}
 
 async function syncToCloud(){
   const status=document.getElementById('syncStatus');
@@ -183,7 +204,7 @@ async function syncFromCloud(){
     if(!confirm('クラウド保存日時：'+updated+'\n\n復元すると、この端末の商品・購入履歴・入荷ログ・販売元審査情報がクラウドの内容に置き換わります。続けますか？'))return;
     const d=result.snapshot.data;
     if(!d||!Array.isArray(d.products)||!Array.isArray(d.purchases))throw new Error('クラウドデータの形式が正しくありません');
-    db={products:d.products,purchases:d.purchases,alerts:Array.isArray(d.alerts)?d.alerts:[]};
+    db={products:d.products,purchases:d.purchases,alerts:Array.isArray(d.alerts)?d.alerts:[],keywordWatches:Array.isArray(d.keywordWatches)?d.keywordWatches:[]};
     localStorage.setItem(KEY,JSON.stringify(db));
     if(result.snapshot.safety&&typeof result.snapshot.safety==='object'){
       localStorage.setItem('stockhunter_v02_safety',JSON.stringify(result.snapshot.safety));
