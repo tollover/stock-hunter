@@ -95,6 +95,15 @@ footer{position:fixed;bottom:0;left:0;right:0;background:#0d1728ed;border-top:1p
       <input id="importFile" type="file" accept="application/json" class="hidden" onchange="importData(event)">
     </div>
     <div class="panel">
+      <h3 style="margin-top:0">クラウドデータ同期</h3>
+      <p class="hint">商品・購入履歴・入荷ログ・販売元審査情報を、ログイン中のアカウント専用領域に保存します。同期は手動操作です。復元すると端末内のデータが置き換わるため、確認してから実行してください。</p>
+      <div class="actions">
+        <button type="button" onclick="syncToCloud()">端末からクラウドへ保存</button>
+        <button type="button" class="secondary" onclick="syncFromCloud()">クラウドから端末へ復元</button>
+      </div>
+      <p id="syncStatus" class="hint" aria-live="polite">同期操作はまだ行われていません。</p>
+    </div>
+    <div class="panel">
       <h3 style="margin-top:0">v0.1の制約と次の開発</h3>
       <ul class="hint">
         <li>販売サイトの自動巡回・在庫判定は未接続です。</li>
@@ -139,6 +148,52 @@ async function requestNotify(){if(!('Notification'in window)){toast('このブ�
 function notify(msg){if('Notification'in window&&Notification.permission==='granted')new Notification('Stock Hunter',{body:msg});else toast(msg)}
 function exportData(){let safety=null;try{safety=JSON.parse(localStorage.getItem('stockhunter_v02_safety')||'null')}catch(e){}const backup={format:'StockHunterBackup',version:2,exportedAt:new Date().toISOString(),data:db,safety};let blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='stock-hunter-full-backup.json';a.click();URL.revokeObjectURL(a.href);toast('商品・購入履歴・販売元審査情報をバックアップしました')}
 function importData(e){let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let parsed=JSON.parse(r.result),d=parsed&&parsed.format==='StockHunterBackup'?parsed.data:parsed;if(!d||!Array.isArray(d.products)||!Array.isArray(d.purchases))throw Error();db={products:d.products,purchases:d.purchases,alerts:Array.isArray(d.alerts)?d.alerts:[]};save();if(parsed&&parsed.format==='StockHunterBackup'&&parsed.safety&&typeof parsed.safety==='object')localStorage.setItem('stockhunter_v02_safety',JSON.stringify(parsed.safety));toast('データを読み込みました。審査情報を復元した場合は画面を再読み込みしてください')}catch(_){toast('ファイル形式が正しくありません')}};r.readAsText(f);e.target.value=''}
+
+async function syncToCloud(){
+  const status=document.getElementById('syncStatus');
+  try{
+    const check=await fetch('/api/sync',{method:'GET',cache:'no-store'});
+    const current=await check.json();
+    if(!check.ok||!current.ok)throw new Error(current.message||'クラウドを確認できません');
+    let promptText='この端末の商品・購入履歴・入荷ログ・販売元審査情報をクラウドへ保存します。';
+    if(current.exists)promptText+='\n\n既存のクラウド保存データ（'+(current.snapshot.updated_at||'日時不明')+'）は新しい内容に置き換わります。';
+    if(!confirm(promptText+'\nよろしいですか？'))return;
+    let safety=null;
+    try{safety=JSON.parse(localStorage.getItem('stockhunter_v02_safety')||'null')}catch(e){}
+    status.textContent='クラウドへ保存しています…';
+    const response=await fetch('/api/sync',{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify({data:db,safety})});
+    const result=await response.json();
+    if(!response.ok||!result.ok)throw new Error(result.message||'保存に失敗しました');
+    status.textContent='クラウドへの保存が完了しました。';
+    toast('クラウドへ保存しました');
+  }catch(error){status.textContent='保存できませんでした：'+error.message}
+}
+async function syncFromCloud(){
+  const status=document.getElementById('syncStatus');
+  try{
+    status.textContent='クラウドのデータを確認しています…';
+    const response=await fetch('/api/sync',{method:'GET',cache:'no-store'});
+    const result=await response.json();
+    if(!response.ok||!result.ok)throw new Error(result.message||'確認に失敗しました');
+    if(!result.exists||!result.snapshot){
+      status.textContent='クラウドには保存データがありません。先に「端末からクラウドへ保存」を行ってください。';
+      return;
+    }
+    const updated=result.snapshot.updated_at||'日時不明';
+    if(!confirm('クラウド保存日時：'+updated+'\n\n復元すると、この端末の商品・購入履歴・入荷ログ・販売元審査情報がクラウドの内容に置き換わります。続けますか？'))return;
+    const d=result.snapshot.data;
+    if(!d||!Array.isArray(d.products)||!Array.isArray(d.purchases))throw new Error('クラウドデータの形式が正しくありません');
+    db={products:d.products,purchases:d.purchases,alerts:Array.isArray(d.alerts)?d.alerts:[]};
+    localStorage.setItem(KEY,JSON.stringify(db));
+    if(result.snapshot.safety&&typeof result.snapshot.safety==='object'){
+      localStorage.setItem('stockhunter_v02_safety',JSON.stringify(result.snapshot.safety));
+    }
+    render();
+    status.textContent='クラウドからの復元が完了しました。';
+    toast('クラウドから復元しました');
+  }catch(error){status.textContent='復元できませんでした：'+error.message}
+}
+
 render();
 if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister())).catch(()=>{});if('caches' in window)caches.keys().then(keys=>keys.forEach(k=>caches.delete(k))).catch(()=>{});}
 </script>
