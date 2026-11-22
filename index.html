@@ -89,7 +89,7 @@ footer{position:fixed;bottom:0;left:0;right:0;background:#0d1728ed;border-top:1p
     </div>
     <div class="panel">
       <h3 style="margin-top:0">データ管理</h3>
-      <p class="hint">商品・購入履歴は現在のブラウザ内に保存されます。機種変更やブラウザデータ消去で失われる可能性があります。</p>
+      <p class="hint">商品・購入履歴・販売元審査情報は現在のブラウザ内に保存されます。機種変更やブラウザデータ消去で失われる可能性があります。バックアップにはこれらすべてが含まれます。</p>
       <button class="secondary" onclick="exportData()">データを書き出す（JSON）</button>
       <button class="secondary" onclick="document.getElementById('importFile').click()">データを読み込む</button>
       <input id="importFile" type="file" accept="application/json" class="hidden" onchange="importData(event)">
@@ -137,8 +137,8 @@ buyForm.addEventListener('submit',e=>{e.preventDefault();db.purchases.unshift({i
 function delPurchase(pid){if(confirm('購入記録を削除しますか？')){db.purchases=db.purchases.filter(p=>p.id!==pid);save()}}
 async function requestNotify(){if(!('Notification'in window)){toast('このブラウザは通知に対応していません');return}let p=await Notification.requestPermission();if(p==='granted'){new Notification('Stock Hunter',{body:'通知テストに成功しました'});toast('通知を送信しました')}else toast('通知が許可されませんでした')}
 function notify(msg){if('Notification'in window&&Notification.permission==='granted')new Notification('Stock Hunter',{body:msg});else toast(msg)}
-function exportData(){let blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='stock-hunter-backup.json';a.click();URL.revokeObjectURL(a.href)}
-function importData(e){let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let d=JSON.parse(r.result);if(!Array.isArray(d.products)||!Array.isArray(d.purchases))throw Error();db={products:d.products,purchases:d.purchases,alerts:Array.isArray(d.alerts)?d.alerts:[]};save();toast('データを読み込みました')}catch(_){toast('ファイル形式が正しくありません')}};r.readAsText(f)}
+function exportData(){let safety=null;try{safety=JSON.parse(localStorage.getItem('stockhunter_v02_safety')||'null')}catch(e){}const backup={format:'StockHunterBackup',version:2,exportedAt:new Date().toISOString(),data:db,safety};let blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='stock-hunter-full-backup.json';a.click();URL.revokeObjectURL(a.href);toast('商品・購入履歴・販売元審査情報をバックアップしました')}
+function importData(e){let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let parsed=JSON.parse(r.result),d=parsed&&parsed.format==='StockHunterBackup'?parsed.data:parsed;if(!d||!Array.isArray(d.products)||!Array.isArray(d.purchases))throw Error();db={products:d.products,purchases:d.purchases,alerts:Array.isArray(d.alerts)?d.alerts:[]};save();if(parsed&&parsed.format==='StockHunterBackup'&&parsed.safety&&typeof parsed.safety==='object')localStorage.setItem('stockhunter_v02_safety',JSON.stringify(parsed.safety));toast('データを読み込みました。審査情報を復元した場合は画面を再読み込みしてください')}catch(_){toast('ファイル形式が正しくありません')}};r.readAsText(f);e.target.value=''}
 render();
 if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister())).catch(()=>{});if('caches' in window)caches.keys().then(keys=>keys.forEach(k=>caches.delete(k))).catch(()=>{});}
 </script>
