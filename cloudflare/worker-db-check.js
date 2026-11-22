@@ -123,6 +123,62 @@ export default {
     };
     const url = new URL(request.url);
 
+
+    if (url.pathname === "/api/sync") {
+      if (request.method !== "GET" && request.method !== "PUT") {
+        return new Response(JSON.stringify({ ok: false, message: "Method not allowed." }), {
+          status: 405, headers: { ...headers, allow: "GET, PUT" }
+        });
+      }
+      try {
+        await env.DB.prepare("CREATE TABLE IF NOT EXISTS stock_hunter_sync (user_email TEXT PRIMARY KEY, data_json TEXT NOT NULL, safety_json TEXT, updated_at TEXT NOT NULL DEFAULT (datetime('now')))").run();
+        const userEmail = auth.payload.email;
+
+        if (request.method === "GET") {
+          const row = await env.DB.prepare("SELECT data_json, safety_json, updated_at FROM stock_hunter_sync WHERE user_email = ?").bind(userEmail).first();
+          return new Response(JSON.stringify({
+            ok: true,
+            exists: !!row,
+            snapshot: row ? {
+              data: JSON.parse(row.data_json),
+              safety: row.safety_json ? JSON.parse(row.safety_json) : null,
+              updated_at: row.updated_at
+            } : null
+          }), { status: 200, headers });
+        }
+
+        const raw = await request.text();
+        if (new TextEncoder().encode(raw).length > 500000) {
+          return new Response(JSON.stringify({ ok: false, message: "Backup exceeds the 500 KB limit." }), { status: 413, headers });
+        }
+        const body = JSON.parse(raw);
+        if (!body || !body.data || !Array.isArray(body.data.products) ||
+            !Array.isArray(body.data.purchases) ||
+            (body.data.alerts !== undefined && !Array.isArray(body.data.alerts)) ||
+            (body.safety !== null && body.safety !== undefined &&
+             (typeof body.safety !== "object" || Array.isArray(body.safety)))) {
+          return new Response(JSON.stringify({ ok: false, message: "Backup format is invalid." }), { status: 400, headers });
+        }
+
+        await env.DB.prepare("INSERT INTO stock_hunter_sync (user_email, data_json, safety_json, updated_at) VALUES (?, ?, ?, datetime('now')) ON CONFLICT(user_email) DO UPDATE SET data_json = excluded.data_json, safety_json = excluded.safety_json, updated_at = datetime('now')")
+          .bind(
+            userEmail,
+            JSON.stringify({
+              products: body.data.products,
+              purchases: body.data.purchases,
+              alerts: Array.isArray(body.data.alerts) ? body.data.alerts : []
+            }),
+            body.safety ? JSON.stringify(body.safety) : null
+          ).run();
+
+        return new Response(JSON.stringify({ ok: true, saved: true }), { status: 200, headers });
+      } catch (error) {
+        return new Response(JSON.stringify({ ok: false, message: "Cloud sync failed. Please try again." }), {
+          status: 500, headers
+        });
+      }
+    }
+
     if (url.pathname === "/api/health") {
       if (request.method !== "GET") {
         return new Response(JSON.stringify({
