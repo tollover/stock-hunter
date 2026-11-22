@@ -120,7 +120,8 @@ footer{position:fixed;bottom:0;left:0;right:0;background:#0d1728ed;border-top:1p
       <div id="familyInviteStatus" class="hint" aria-live="polite" style="margin-top:10px">招待リストを読み込んでいます…</div>
       <div id="familyInviteList"></div>
     </div>
-\n      <h3 style="margin-top:0">クラウドデータ同期</h3>
+
+      <h3 style="margin-top:0">クラウドデータ同期</h3>
       <p class="hint">商品・購入履歴・入荷ログ・販売元審査情報を、ログイン中のアカウント専用領域に保存します。同期は手動操作です。復元すると端末内のデータが置き換わるため、確認してから実行してください。</p>
       <div class="actions">
         <button type="button" onclick="syncToCloud()">端末からクラウドへ保存</button>
@@ -208,7 +209,8 @@ document.getElementById('familyInviteForm')?.addEventListener('submit',async e=>
     await loadFamilyInvites();
   }catch(error){status.textContent='招待できませんでした：'+error.message}
 });
-\nasync function syncToCloud(){
+
+async function syncToCloud(){
   const status=document.getElementById('syncStatus');
   try{
     const check=await fetch('/api/sync',{method:'GET',cache:'no-store'});
