@@ -181,7 +181,34 @@ function notify(msg){if('Notification'in window&&Notification.permission==='gran
 function exportData(){let safety=null;try{safety=JSON.parse(localStorage.getItem('stockhunter_v02_safety')||'null')}catch(e){}const backup={format:'StockHunterBackup',version:2,exportedAt:new Date().toISOString(),data:db,safety};let blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='stock-hunter-full-backup.json';a.click();URL.revokeObjectURL(a.href);toast('商品・購入履歴・販売元審査情報をバックアップしました')}
 function importData(e){let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let parsed=JSON.parse(r.result),d=parsed&&parsed.format==='StockHunterBackup'?parsed.data:parsed;if(!d||!Array.isArray(d.products)||!Array.isArray(d.purchases))throw Error();db={products:d.products,purchases:d.purchases,alerts:Array.isArray(d.alerts)?d.alerts:[],keywordWatches:Array.isArray(d.keywordWatches)?d.keywordWatches:[]};save();if(parsed&&parsed.format==='StockHunterBackup'&&parsed.safety&&typeof parsed.safety==='object')localStorage.setItem('stockhunter_v02_safety',JSON.stringify(parsed.safety));toast('データを読み込みました。審査情報を復元した場合は画面を再読み込みしてください')}catch(_){toast('ファイル形式が正しくありません')}};r.readAsText(f);e.target.value=''}
 
-async function syncToCloud(){
+
+async function loadFamilyInvites(){
+  const status=document.getElementById('familyInviteStatus');
+  const list=document.getElementById('familyInviteList');
+  if(!status||!list)return;
+  try{
+    const response=await fetch('/api/family/invites',{method:'GET',cache:'no-store'});
+    const result=await response.json();
+    if(!response.ok||!result.ok)throw new Error(result.message||'読み込みに失敗しました');
+    list.innerHTML=result.invites.length?result.invites.map(inv=>'<div class="logrow"><div><strong>'+esc(inv.invited_email)+'</strong><div class="hint">登録：'+esc(inv.created_at)+'</div></div><span class="pill">'+(inv.status==='pending'?'承認待ち':esc(inv.status))+'</span></div>').join(''):'<p class="hint">招待リストはまだ空です。</p>';
+    status.textContent='招待リストを読み込みました。';
+  }catch(error){status.textContent='招待リストを取得できません：'+error.message}
+}
+document.getElementById('familyInviteForm')?.addEventListener('submit',async e=>{
+  e.preventDefault();
+  const status=document.getElementById('familyInviteStatus');
+  const email=document.getElementById('familyEmail').value.trim();
+  status.textContent='招待情報を保存しています…';
+  try{
+    const response=await fetch('/api/family/invites',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email})});
+    const result=await response.json();
+    if(!response.ok||!result.ok)throw new Error(result.message||'登録に失敗しました');
+    document.getElementById('familyEmail').value='';
+    status.textContent=result.email+' を招待待ちリストに追加しました。ログイン許可と共有は別途有効化が必要です。';
+    await loadFamilyInvites();
+  }catch(error){status.textContent='招待できませんでした：'+error.message}
+});
+\nasync function syncToCloud(){
   const status=document.getElementById('syncStatus');
   try{
     const check=await fetch('/api/sync',{method:'GET',cache:'no-store'});
