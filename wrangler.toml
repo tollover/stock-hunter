@@ -1,0 +1,8 @@
+name = "stock-hunter-monitor"
+main = "cloudflare/worker-db-check.js"
+compatibility_date = "2026-11-22"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "stock-hunter-db"
+database_id = "89b93572-e9eb-4740-a1d2-4532134bace8"
