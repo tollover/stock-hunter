@@ -126,6 +126,28 @@ export default {
 
 
 
+    if (url.pathname === "/api/family/pending") {
+      const email = String(auth.payload.email || "").trim().toLowerCase();
+      try {
+        await env.DB.prepare("CREATE TABLE IF NOT EXISTS stock_hunter_family_invites (id TEXT PRIMARY KEY, owner_email TEXT NOT NULL, invited_email TEXT NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime('now')), UNIQUE(owner_email, invited_email))").run();
+        if (request.method === "GET") {
+          const result = await env.DB.prepare("SELECT owner_email, status, created_at FROM stock_hunter_family_invites WHERE invited_email = ? AND status = 'pending' ORDER BY created_at DESC").bind(email).all();
+          return new Response(JSON.stringify({ ok: true, invites: result.results || [] }), { status: 200, headers });
+        }
+        if (request.method === "POST") {
+          const body = await request.json();
+          const ownerEmail = String(body.owner_email || "").trim().toLowerCase();
+          const invite = await env.DB.prepare("SELECT id FROM stock_hunter_family_invites WHERE owner_email = ? AND invited_email = ? AND status = 'pending'").bind(ownerEmail, email).first();
+          if (!invite) return new Response(JSON.stringify({ ok: false, message: "このメールアドレス宛ての有効な招待がありません。" }), { status: 404, headers });
+          await env.DB.prepare("UPDATE stock_hunter_family_invites SET status = 'accepted' WHERE owner_email = ? AND invited_email = ? AND status = 'pending'").bind(ownerEmail, email).run();
+          return new Response(JSON.stringify({ ok: true, accepted: true }), { status: 200, headers });
+        }
+        return new Response(JSON.stringify({ ok: false, message: "Method not allowed." }), { status: 405, headers: { ...headers, allow: "GET, POST" } });
+      } catch (error) {
+        return new Response(JSON.stringify({ ok: false, message: "招待を確認できませんでした。" }), { status: 500, headers });
+      }
+    }
+
     if (url.pathname === "/api/family/invites") {
       const ownerEmail = String(env.ALLOWED_EMAIL || "").trim().toLowerCase();
       const requesterEmail = String(auth.payload.email || "").trim().toLowerCase();
@@ -158,10 +180,17 @@ export default {
       }
       try {
         await env.DB.prepare("CREATE TABLE IF NOT EXISTS stock_hunter_sync (user_email TEXT PRIMARY KEY, data_json TEXT NOT NULL, safety_json TEXT, updated_at TEXT NOT NULL DEFAULT (datetime('now')))").run();
-        const userEmail = auth.payload.email;
+        const userEmail = String(auth.payload.email || "").trim().toLowerCase();
+        const adminEmail = String(env.ALLOWED_EMAIL || "").trim().toLowerCase();
+        const householdEmail = adminEmail;
+        if (!adminEmail) return new Response(JSON.stringify({ ok: false, message: "管理者メールアドレスが設定されていません。" }), { status: 503, headers });
+        if (userEmail !== adminEmail) {
+          const membership = await env.DB.prepare("SELECT id FROM stock_hunter_family_invites WHERE owner_email = ? AND invited_email = ? AND status = 'accepted'").bind(adminEmail, userEmail).first();
+          if (!membership) return new Response(JSON.stringify({ ok: false, message: "家族招待の承認が必要です。設定画面で招待を承認してください。" }), { status: 403, headers });
+        }
 
         if (request.method === "GET") {
-          const row = await env.DB.prepare("SELECT data_json, safety_json, updated_at FROM stock_hunter_sync WHERE user_email = ?").bind(userEmail).first();
+          const row = await env.DB.prepare("SELECT data_json, safety_json, updated_at FROM stock_hunter_sync WHERE user_email = ?").bind(householdEmail).first();
           return new Response(JSON.stringify({
             ok: true,
             exists: !!row,
@@ -189,7 +218,7 @@ export default {
 
         await env.DB.prepare("INSERT INTO stock_hunter_sync (user_email, data_json, safety_json, updated_at) VALUES (?, ?, ?, datetime('now')) ON CONFLICT(user_email) DO UPDATE SET data_json = excluded.data_json, safety_json = excluded.safety_json, updated_at = datetime('now')")
           .bind(
-            userEmail,
+            householdEmail,
             JSON.stringify({
               products: body.data.products,
               purchases: body.data.purchases,
