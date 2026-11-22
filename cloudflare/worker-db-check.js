@@ -29,7 +29,7 @@ async function getJwks(url) {
 }
 
 async function verifyAccessRequest(request, env) {
-  if (!env.TEAM_DOMAIN || !env.JWKS_URL || !env.POLICY_AUD || !env.ALLOWED_EMAIL) {
+  if (!env.TEAM_DOMAIN || !env.JWKS_URL || !env.POLICY_AUD || !(env.ALLOWED_EMAILS || env.ALLOWED_EMAIL)) {
     return { ok: false, status: 503, message: "Access verification is not configured." };
   }
 
@@ -63,7 +63,8 @@ async function verifyAccessRequest(request, env) {
     if (payload.nbf !== undefined && (!Number.isFinite(payload.nbf) || now < payload.nbf)) {
       throw new Error("Token is not active yet.");
     }
-    if (payload.email !== env.ALLOWED_EMAIL) {
+    const allowedEmails = String(env.ALLOWED_EMAILS || env.ALLOWED_EMAIL).split(",").map((email) => email.trim().toLowerCase()).filter(Boolean);
+    if (typeof payload.email !== "string" || !allowedEmails.includes(payload.email.toLowerCase())) {
       throw new Error("This account is not allowed.");
     }
 
