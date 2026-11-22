@@ -11,3 +11,9 @@ run_worker_first = ["/api/*", "/db-test"]
 binding = "DB"
 database_name = "stock-hunter-db"
 database_id = "89b93572-e9eb-4740-a1d2-4532134bace8"
+
+[vars]
+TEAM_DOMAIN = "https://holy-sun-215d.cloudflareaccess.com"
+JWKS_URL = "https://holy-sun-215d.cloudflareaccess.com/cdn-cgi/access/certs"
+POLICY_AUD = "d169b36695cadca61d9b0adf69eecb1c52a693601d58f6d6b62896946d966f61"
+ALLOWED_EMAIL = "m_n_is_g_0414_t@yahoo.co.jp"
