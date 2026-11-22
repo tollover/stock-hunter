@@ -111,7 +111,7 @@
         link.removeAttribute('href');link.removeAttribute('target');if(link.textContent!=='危険の疑い・購入リンク停止')link.textContent='危険の疑い・購入リンク停止';link.style.background='#542b36';link.style.pointerEvents='none';link.setAttribute('aria-disabled','true');
         if(action.textContent!=='ブロック中')action.textContent='ブロック中';action.disabled=true;
       }else if(review){
-        link.href=url;link.target='_blank';link.rel='noopener';if(link.textContent!=='審査記録あり・商品ページ ↗')link.textContent='審査記録あり・商品ページ ↗';link.style.background='#246fc1';link.style.pointerEvents='auto';link.removeAttribute('aria-disabled');
+        link.href=url;link.target='_blank';link.rel='noopener';link.onclick=e=>{const current=reviewFor(url);if(!current){e.preventDefault();alert('審査記録が確認できないため、リンクを停止しました。');return false;}const ok=confirm('【商品ページを開きます】\n販売元：'+(current.seller||'未登録')+'\nサイト：'+host+'\n\n審査記録はありますが、安全を保証するものではありません。販売元・商品・価格をページ上で再確認してください。\n\nカート追加・購入・決済は自動では行いません。ご自身で確認して操作してください。\n\n商品ページを開きますか？');if(!ok){e.preventDefault();return false;}return true;};if(link.textContent!=='審査記録あり・商品ページ ↗')link.textContent='審査記録あり・商品ページ ↗';link.style.background='#246fc1';link.style.pointerEvents='auto';link.removeAttribute('aria-disabled');
         if(action.textContent!=='審査内容を再確認')action.textContent='審査内容を再確認';action.disabled=false;
         action.onclick=()=>askAndReview(url,link,card);
       }else{
