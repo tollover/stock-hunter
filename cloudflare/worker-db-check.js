@@ -125,6 +125,27 @@ export default {
     const url = new URL(request.url);
 
 
+
+    if (url.pathname === "/api/family/invites") {
+      try {
+        await env.DB.prepare("CREATE TABLE IF NOT EXISTS stock_hunter_family_invites (id TEXT PRIMARY KEY, owner_email TEXT NOT NULL, invited_email TEXT NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime('now')), UNIQUE(owner_email, invited_email))").run();
+        const ownerEmail = String(auth.payload.email).toLowerCase();
+        if (request.method === "GET") {
+          const result = await env.DB.prepare("SELECT id, invited_email, status, created_at FROM stock_hunter_family_invites WHERE owner_email = ? ORDER BY created_at DESC").bind(ownerEmail).all();
+          return new Response(JSON.stringify({ ok: true, invites: result.results || [] }), { status: 200, headers });
+        }
+        if (request.method !== "POST") return new Response(JSON.stringify({ ok: false, message: "Method not allowed." }), { status: 405, headers: { ...headers, allow: "GET, POST" } });
+        const body = await request.json();
+        const invitedEmail = String(body.email || "").trim().toLowerCase();
+        if (invitedEmail.length > 254 || !invitedEmail.includes("@") || !invitedEmail.includes(".")) return new Response(JSON.stringify({ ok: false, message: "メールアドレスの形式を確認してください。" }), { status: 400, headers });
+        if (invitedEmail === ownerEmail) return new Response(JSON.stringify({ ok: false, message: "自分自身は招待できません。" }), { status: 400, headers });
+        await env.DB.prepare("INSERT INTO stock_hunter_family_invites (id, owner_email, invited_email, status) VALUES (?, ?, ?, 'pending') ON CONFLICT(owner_email, invited_email) DO UPDATE SET status = 'pending', created_at = datetime('now')").bind(crypto.randomUUID(), ownerEmail, invitedEmail).run();
+        return new Response(JSON.stringify({ ok: true, invited: true, email: invitedEmail, status: "pending" }), { status: 200, headers });
+      } catch (error) {
+        return new Response(JSON.stringify({ ok: false, message: "家族招待を保存できませんでした。" }), { status: 500, headers });
+      }
+    }
+
     if (url.pathname === "/api/sync") {
       if (request.method !== "GET" && request.method !== "PUT") {
         return new Response(JSON.stringify({ ok: false, message: "Method not allowed." }), {
