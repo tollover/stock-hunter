@@ -119,10 +119,14 @@ footer{position:fixed;bottom:0;left:0;right:0;background:#0d1728ed;border-top:1p
       </form>
       <div id="familyInviteStatus" class="hint" aria-live="polite" style="margin-top:10px">招待リストを読み込んでいます…</div>
       <div id="familyInviteList"></div>
+      <div id="familyPendingPanel" class="panel" style="margin-top:14px">
+        <h3 style="margin-top:0">届いている家族招待</h3>
+        <div id="familyPendingList" class="hint">招待を確認しています…</div>
+      </div>
     </div>
 
       <h3 style="margin-top:0">クラウドデータ同期</h3>
-      <p class="hint">商品・購入履歴・入荷ログ・販売元審査情報を、ログイン中のアカウント専用領域に保存します。同期は手動操作です。復元すると端末内のデータが置き換わるため、確認してから実行してください。</p>
+      <p class="hint">家族招待を承認した端末どうしで、商品・購入履歴・入荷ログ・検索条件・販売元審査情報を共有します。同期は手動操作です。復元すると端末内のデータが置き換わるため、確認してから実行してください。</p>
       <div class="actions">
         <button type="button" onclick="syncToCloud()">端末からクラウドへ保存</button>
         <button type="button" class="secondary" onclick="syncFromCloud()">クラウドから端末へ復元</button>
@@ -210,6 +214,30 @@ document.getElementById('familyInviteForm')?.addEventListener('submit',async e=>
   }catch(error){status.textContent='招待できませんでした：'+error.message}
 });
 
+async function loadFamilyPending(){
+  const list=document.getElementById('familyPendingList');
+  if(!list)return;
+  try{
+    const response=await fetch('/api/family/pending',{method:'GET',cache:'no-store'});
+    const result=await response.json();
+    if(!response.ok||!result.ok)throw new Error(result.message||'確認できません');
+    if(!result.invites.length){list.textContent='現在、あなた宛ての未承認招待はありません。';return;}
+    list.innerHTML=result.invites.map(inv=>'<div class="logrow"><div><strong>管理者：'+esc(inv.owner_email)+'</strong><div class="hint">招待日時：'+esc(inv.created_at)+'</div></div><button class="small" onclick="acceptFamilyInvite(\''+esc(inv.owner_email)+'\')">招待を承認</button></div>').join('');
+  }catch(error){list.textContent='招待の確認に失敗しました：'+error.message}
+}
+async function acceptFamilyInvite(ownerEmail){
+  if(!confirm('この家族グループへの参加を承認しますか？承認後は共有データを閲覧・更新できます。'))return;
+  const list=document.getElementById('familyPendingList');
+  try{
+    const response=await fetch('/api/family/pending',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({owner_email:ownerEmail})});
+    const result=await response.json();
+    if(!response.ok||!result.ok)throw new Error(result.message||'承認できません');
+    list.textContent='家族グループへの参加を承認しました。次に管理者端末からクラウドへ保存し、この端末で「クラウドから端末へ復元」を行ってください。';
+    await loadFamilyPending();
+    toast('家族招待を承認しました');
+  }catch(error){list.textContent='承認できませんでした：'+error.message}
+}
+
 async function syncToCloud(){
   const status=document.getElementById('syncStatus');
   try{
@@ -257,6 +285,7 @@ async function syncFromCloud(){
 
 render();
 loadFamilyInvites();
+loadFamilyPending();
 if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister())).catch(()=>{});if('caches' in window)caches.keys().then(keys=>keys.forEach(k=>caches.delete(k))).catch(()=>{});}
 </script>
 <script src="./safety.js?v=20261122d"></script>
