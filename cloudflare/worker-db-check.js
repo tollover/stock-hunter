@@ -132,7 +132,7 @@ export default {
         await env.DB.prepare("CREATE TABLE IF NOT EXISTS stock_hunter_family_invites (id TEXT PRIMARY KEY, owner_email TEXT NOT NULL, invited_email TEXT NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime('now')), UNIQUE(owner_email, invited_email))").run();
         if (request.method === "GET") {
           const result = await env.DB.prepare("SELECT owner_email, status, created_at FROM stock_hunter_family_invites WHERE invited_email = ? AND status = 'pending' ORDER BY created_at DESC").bind(email).all();
-          return new Response(JSON.stringify({ ok: true, invites: result.results || [] }), { status: 200, headers });
+          return new Response(JSON.stringify({ ok: true, account_email: email, invites: result.results || [] }), { status: 200, headers });
         }
         if (request.method === "POST") {
           const body = await request.json();
