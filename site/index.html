@@ -154,7 +154,7 @@ function save(){localStorage.setItem(KEY,JSON.stringify(db));render()}
 function id(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function toast(s){let t=document.getElementById('toast');t.textContent=s;t.style.display='block';setTimeout(()=>t.style.display='none',2600)}
-function showTab(tab){document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));['products','add','search','history','settings'].forEach(x=>document.getElementById('view-'+x).classList.toggle('hidden',x!==tab));}
+function showTab(tab){document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));['products','add','search','history','settings'].forEach(x=>document.getElementById('view-'+x).classList.toggle('hidden',x!==tab));if(tab==='settings'){loadFamilyPending();loadFamilyInvites();}}
 document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.tab)));
 document.getElementById('keywordForm').addEventListener('submit',e=>{
  e.preventDefault();const stores=[...document.getElementById('keywordStores').selectedOptions].map(o=>o.value);if(!stores.length){toast('対象店舗を1つ以上選択してください');return}
