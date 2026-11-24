@@ -221,7 +221,7 @@ async function loadFamilyPending(){
     const response=await fetch('/api/family/pending',{method:'GET',cache:'no-store'});
     const result=await response.json();
     if(!response.ok||!result.ok)throw new Error(result.message||'確認できません');
-    if(!result.invites.length){list.textContent='現在、あなた宛ての未承認招待はありません。';return;}
+    if(!result.invites.length){list.textContent='現在、あなた宛ての未承認招待はありません。\nログイン中の認証メール：'+(result.account_email||'取得できません');return;}
     list.innerHTML=result.invites.map(inv=>'<div class="logrow"><div><strong>管理者：'+esc(inv.owner_email)+'</strong><div class="hint">招待日時：'+esc(inv.created_at)+'</div></div><button class="small" onclick="acceptFamilyInvite(\''+esc(inv.owner_email)+'\')">招待を承認</button></div>').join('');
   }catch(error){list.textContent='招待の確認に失敗しました：'+error.message}
 }
